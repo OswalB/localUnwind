@@ -304,9 +304,6 @@ const objPlano =
         }
     ]
 
-
-
-
 const data = [
     {
         "_id": "66d3e4129ea587a652888c42",
@@ -536,90 +533,113 @@ const arr2 = [
 
 
 // +***********  FUNCIONES DE PRUEBA
-
+let dataUnwind = [];
 unwind(data);
 
 
 function unwind(data) {
-    let dataUnwind = [];
+    
     data.forEach(documento =>{
         const jsonData = exploreObject(documento);
-        //console.log(jsonData);
         const indexPadre = jsonData.reduce((minIdx, item, index) => {
             return (minIdx === -1 || item.parent.yo < jsonData[minIdx].parent.yo)
                 ? index
                 : minIdx;
         }, -1);
         const padre = jsonData[indexPadre].parent.yo;
-        //console.log(indexPadre, padre);
         res = consolidar(jsonData, padre, indexPadre);
-        console.log(res)
         dataUnwind = [...dataUnwind, ...res];
     })
 
     console.log(dataUnwind);
-
-    console.log(compareArrays(dataUnwind, objPlano));
+    const keysAndTypes = getKeysAndTypes(dataUnwind);
+    console.log(keysAndTypes);
 
 }
+//esta funcion esta OOKK
+function filterBy(arr, condition) {
+    
+    const [field, operator, value] = condition.split(/(=|>|<|>=|<=)/).map(str => str.trim());
+
+    return arr.filter(item => {
+        if (!(field in item)) {
+            return false; 
+        }
+        
+        let fieldValue = item[field];
+        let conditionValue;
+
+        if (typeof(fieldValue) === 'boolean') {
+            conditionValue = value === 'true' ? true : false;
+        } else if (!isNaN(value)) {
+            conditionValue = parseFloat(value); 
+        } else {
+            
+            fieldValue = fieldValue.toString().toLowerCase();
+            conditionValue = value.toLowerCase();
+        }
+        
+        switch (operator) {
+            case '=':
+                if (typeof fieldValue === 'string') {
+                    // Para cadenas, buscamos coincidencias parciales
+                    return fieldValue.includes(conditionValue);
+                } else {
+                    return fieldValue == conditionValue;
+                }
+            case '>':
+                return fieldValue > conditionValue;
+            case '<':
+                return fieldValue < conditionValue;
+            case '>=':
+                return fieldValue >= conditionValue;
+            case '<=':
+                return fieldValue <= conditionValue;
+            default:
+                return false; 
+        }
+    });
+}
+
+
+
+
+
+
+
+function getKeysAndTypes(arr) {
+    let keysAndTypes = {};
+
+    arr.forEach(item => {
+        Object.keys(item).forEach(key => {
+            if (!keysAndTypes[key]) {
+                keysAndTypes[key] = typeof item[key]; // Guardamos el tipo de la clave
+            }
+        });
+    });
+
+    return keysAndTypes;
+}
+
 
 function consolidar(arr, padre, indexPadre, accObject = {}, resultados = []) {
-    let tieneHijos = false; // Para verificar si hay descendientes
+    let tieneHijos = false; 
 
     arr.forEach(item => {
         if (item.parent.padre === padre) {
             tieneHijos = true; 
             accObject = { ...accObject, ...item.datos };
-            consolidar(arr, item.parent.yo, indexPadre, accObject, resultados); // Continuar explorando la rama
+            consolidar(arr, item.parent.yo, indexPadre, accObject, resultados); 
         }
     });
 
-    // Si no tiene descendientes, es el final de la rama
     if (!tieneHijos) {
         accObject = { ...arr[indexPadre].datos, ...accObject };
-        resultados.push(accObject); // Añadir el objeto al array de resultados
+        resultados.push(accObject); 
     }
 
-    return resultados; // Devolver los resultados
+    return resultados; 
 }
-
-/* 14/sep 7:38 le falta devolver arrayde resultados
-function consolidar(arr, padre, indexPadre, accObject={}) {
-    let tieneHijos = false; 
-    arr.forEach(item => {
-        if (item.parent.padre === padre) {
-            tieneHijos = true; 
-            accObject ={...accObject, ...item.datos}
-            consolidar(arr, item.parent.yo, indexPadre, accObject); // Continuar explorando la rama
-        }
-    });
-
-    // Si no tiene descendientes, es el final de la rama
-    if (!tieneHijos) {
-        accObject = {...arr[indexPadre].datos, ...accObject}
-        console.log(accObject);
-    }
-}
-
-/*
-function countDescendantsForSpecificParent(arr, specificParent) {
-    function countDescendants(padre) {
-        let count = 0;
-        arr.forEach(item => {
-            if (item.parent.padre === padre) {
-                count++; // Contar al hijo directo
-                count += countDescendants(item.parent.yo); // Contar los descendientes del hijo
-            }
-        });
-        return count;
-    }
-    const totalDescendants = countDescendants(specificParent);
-    console.log(`Padre ${specificParent} tiene ${totalDescendants} descendientes.`);
-}
-*/
-
-
-
 
 
 
@@ -656,6 +676,15 @@ function exploreObject(obj, idPadre,  parentKey = '', accumulator = []) {
 }
 
 
+
+
+
+
+
+
+
+
+//utilidad para comparar arrays, no se deberia necesitar en servidor
 function compareArrays(arr1, arr2) {
     if (arr1.length !== arr2.length) {
         return { result: false, reason: `Different lengths: arr1 has ${arr1.length} elements, arr2 has ${arr2.length} elements.` };
@@ -717,404 +746,6 @@ function compareObjects(obj1, obj2) {
 
     return diff;
 }
-
-
-
-//console.log(compareArrays(arr1, arr2));
-
-
-
-
-
-
-/*11/sep 8:52
-function exploreObject(obj, depth = 0, parentKey = '', accumulator = [], flat = {}) {
-    const indent = ' '.repeat(depth * 2);
-    
-    if (Array.isArray(obj)) {
-        // Antes de entrar al array, guardamos los datos acumulados
-        if (Object.keys(flat).length > 0) {
-            console.log('push 1')
-            accumulator.push({ ...flat }); // Hacer push de una copia del objeto actual
-            flat = {}; // Limpiar el objeto flat para el siguiente grupo
-        }
-
-        obj.forEach((item, index) => {
-            console.log(`${indent}  [${index}]   ${depth}`);
-            exploreObject(item, depth + 1, parentKey, accumulator, flat);
-        });
-    } else if (typeof obj === 'object' && obj !== null) {
-        for (let key in obj) {
-            if (obj.hasOwnProperty(key)) {
-                const fullKey = parentKey ? `${parentKey}.${key}` : key; // Mantener la clave completa
-
-                if (Array.isArray(obj[key])) {
-                    // Guardar los datos primarios antes de explorar el array
-                    if (Object.keys(flat).length > 0) {
-                        console.log('push 2')
-                        accumulator.push({ ...flat });
-                        flat = {}; // Limpiar el objeto flat
-                    }
-                    exploreObject(obj[key], depth + 1, fullKey, accumulator, flat); // Explorar el array
-                } else if (typeof obj[key] === 'object') {
-                    exploreObject(obj[key], depth + 1, fullKey, accumulator, flat); // Recursión para objetos
-                } else {
-                    console.log(`${indent}  ${fullKey}: ${obj[key]}`);
-                    flat[fullKey] = obj[key]; // Agregar clave-valor al objeto flat
-                    flat.depth=depth
-                }
-            }
-        }
-    }
-console.log('el fin')
-console.log('depth: ',depth ,' obj: ', flat)
-    // Si llegamos al nivel más profundo, y no hay más objetos, hacemos push de los datos
-    if (Object.keys(flat).length > 0) {
-        console.log('push 3')
-        accumulator.push({ ...flat }); // Guardar el último conjunto de datos en el acumulador
-        flat={}
-    }
-
-    return { accumulator, flat }; // Devolver el acumulador y el objeto aplanado
-}*/
-
-
-
-
-/*
-function exploreObject(obj, depth = 0, parentKey = '', accumulator = [], flat = {}) {
-    const indent = ' '.repeat(depth * 2);
-    
-    if (Array.isArray(obj)) {
-        obj.forEach((item, index) => {
-            console.log(`${indent}  [${index}]   ${depth}`);
-            exploreObject(item, depth + 1, parentKey, accumulator, flat);
-        });
-    } else if (typeof obj === 'object' && obj !== null) {
-        for (let key in obj) {
-            if (obj.hasOwnProperty(key)) {
-                const fullKey = parentKey ? `${parentKey}.${key}` : key; // Mantener la clave completa
-                
-                if (typeof obj[key] === 'object' && obj[key] !== null) {
-                    exploreObject(obj[key], depth + 1, fullKey, accumulator, flat); // Recursión para objetos o arrays
-                } else {
-                    console.log(`${indent}  ${fullKey}: ${obj[key]}`);
-                    flat[fullKey] = obj[key]; // Agregar clave-valor al objeto flat
-                }
-            }
-        }
-    }
-    
-    // Si está en el nivel más profundo y no es un objeto, se almacena el resultado
-    if (depth === 0) {
-        accumulator.push(flat); // Insertar el objeto flat en el acumulador solo en la última iteración
-    }
-
-    return { accumulator, flat }; // Devuelve el acumulador y el objeto aplanado
-}
-*/
-
-
-/*11 sep 6:10 
-function exploreObject(obj, depth = 0, parentKey = '', accumulator = [], flat = {}) {
-    const indent = ' '.repeat(depth * 2);
-    if (Array.isArray(obj)) {
-        obj.forEach((item, index) => {
-            console.log(`${indent}  [${index}]   ${depth}`);
-            exploreObject(item, depth + 1, parentKey, accumulator, flat);
-        });
-    } else
-        if (typeof obj === 'object' && obj !== null) {
-            for (let key in obj) {
-                if (obj.hasOwnProperty(key)) {
-                    if (Array.isArray(obj[key])) {
-                        parentKey += `${key}.`
-                        exploreObject(obj[key], depth + 1, parentKey, accumulator, flat);
-                    } else {
-                        const fullKey = `${parentKey}${key}`;
-                        console.log(`${indent}  ${fullKey}: ${obj[key]}`);
-                        flat[fullKey] = obj[key];
-                    }
-                }
-            }
-        }
-        else {
-            //console.log(`${indent}${parentKey}: ${obj}`);
-            accumulator.push(flat);
-        }
-
-    return { accumulator, flat }; // Devuelve el acumulador
-}
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-// funciona bien hasta el primer nivel only, antes de 2.0
-function unwindAndFlatten(data) {
-    const result = [];
-    const fields = new Map();
-
-    data.forEach((item) => {
-        const baseEntry = {};
-        Object.keys(item).forEach(key => {
-            0
-            // Si la propiedad no es un array, lo asignamos al baseEntry
-            if (!Array.isArray(item[key])) {
-                baseEntry[key] = item[key];
-
-                // Agregar el campo y su tipo si no está registrado
-                if (!fields.has(key)) {
-                    fields.set(key, typeof item[key]);
-                }
-            } else {
-                // Si la propiedad es un array, iteramos sobre sus elementos
-                item[key].forEach(subItem => {
-                    const newEntry = { ...baseEntry }; // Clonamos los valores base
-                    Object.keys(subItem).forEach(subKey => {
-                        const newFieldKey = `${key}_${subKey}`; // Creamos una nueva clave para el campo
-                        newEntry[newFieldKey] = subItem[subKey];
-
-                        // Agregar el campo y su tipo si no está registrado
-                        if (!fields.has(newFieldKey)) {
-                            fields.set(newFieldKey, typeof subItem[subKey]);
-                        }
-                    });
-                    result.push(newEntry); // Añadir la nueva entrada al resultado
-                });
-            }
-        });
-    });
-
-    // Convertir el Map a un array de objetos { name, type }
-    const fieldsArray = Array.from(fields, ([name, type]) => ({ name, type }));
-
-    return { result, fields: fieldsArray };
-}
-*/
-
-//version 2.0
-/*
-function unwindAndFlatten(data) {
-    const result = [];
-    const fields = new Map();
-
-    function flatten(item, parentKey = '') {
-      Object.entries(item).forEach(([key, value]) => {
-        const newKey = parentKey ? `${parentKey}_${key}` : key;
-
-        if (typeof value === 'object' && value !== null) {
-          flatten(value, newKey);
-        } else {
-          result.push({ [newKey]: value });
-          fields.set(newKey, typeof value);
-        }
-      });
-    }
-
-    data.forEach(item => flatten(item));
-
-    // Convertir el Map a un array de objetos { name, type }
-    const fieldsArray = Array.from(fields, ([name, type]) => ({ name, type }));
-
-    return { result, fields: fieldsArray };
-  }
-*/
-/*function unwindToObjects(data, parentObj = {}, result = []) {
-    if (Array.isArray(data)) {
-        // Iterar sobre el array y mantener los datos del padre
-        data.forEach(item => unwindToObjects(item, { ...parentObj }, result));
-    } else if (typeof data === 'object' && data !== null) {
-        let hasNestedArray = false;
-
-        Object.keys(data).forEach(key => {
-            if (Array.isArray(data[key])) {
-                // Si es un array, desenrollarlo manteniendo los datos del padre
-                hasNestedArray = true;
-                unwindToObjects(data[key], { ...parentObj }, result);
-            } else if (typeof data[key] === 'object' && data[key] !== null) {
-                // Si es un objeto, desenrollarlo sin perder los datos del padre
-                unwindToObjects(data[key], { ...parentObj, [key]: data[key] }, result);
-            } else {
-                // Guardar el valor del campo plano
-                parentObj[key] = data[key];
-            }
-        });
-result.push(parentObj);
-        if (!hasNestedArray) {
-            // Solo guardar cuando no hay arrays anidados
-
-        }
-    }
-    return result;
-}
-*/
-
-
-/*
-esta funciona bien para claves de primer nivel
-function groupByField(data, field) {
-    return data.reduce((acc, item) => {
-        // Verificamos si la clave del elemento contiene el campo que queremos agrupar
-        const fieldKey = data.find(i => i.key.endsWith(field) && i.key.startsWith(item.key.split('.')[0]));
-
-        if (!fieldKey) {
-            console.error(`El campo "${field}" no se encontró en los datos.`);
-            return acc;
-        }
-
-        const groupKey = fieldKey.value; // El valor por el que vamos a agrupar
-
-        if (!acc[groupKey]) {
-            acc[groupKey] = [];
-        }
-
-        acc[groupKey].push(item);
-        return acc;
-    }, {});
-}
-*/
-
-
-/*
-function exploreObject(obj, depth = 0, parentKey = '', accumulator = []) {
-    const indent = ' '.repeat(depth * 2);
-    if (Array.isArray(obj)) {
-        obj.forEach((item, index) => {
-            //console.log(`${indent}  [${index}]`);
-            exploreObject(item, depth + 1, parentKey, accumulator);
-        });
-    } else
-        if (typeof obj === 'object' && obj !== null) {
-            for (let key in obj) {
-                if (obj.hasOwnProperty(key)) {
-                    const fullKey =`${parentKey}${key}`;
-                    console.log(`${indent}  ${fullKey}: ${obj[key]}`);
-                    if (Array.isArray(obj[key])) parentKey += `${key}.`
-                    exploreObject(obj[key], depth + 1, parentKey, accumulator);
-                }
-            }
-        }
-        else {
-            //console.log(`${indent}${parentKey}: ${obj}`);
-            accumulator.push({ key: parentKey, value: obj });
-        }
-
-    return accumulator; // Devuelve el acumulador
-}
-
-*/
-
-//let results = exploreObject(data);
-
-// Mostrar los resultados acumulados
-//console.log(results);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//exploreObject(data);
-//unwind(data)
-
-/*function unwind(dataUnwind, parentKey = '', result = [], fields = new Map()) {
-    console.log(dataUnwind)
-    if (Array.isArray(dataUnwind)) {
-        dataUnwind.forEach((item, index) => {
-            const newKey = parentKey ? `${parentKey}.${index}` : `${index}`;
-            console.log('nuevc  a K ', newKey);
-            unwind(item, newKey, result, fields);
-        });
-    } else {
-        Object.keys(dataUnwind).forEach(key => {
-            console.log('es campo ', key)
-        })
-    }
-}*/
-
-
-/*
-function flattenData(data) {
-    const flattenedData = [];
-  
-    data.forEach(order => {
-      const flattenedOrder = {
-        ...order,
-        ...order.orderItem,
-        // Remove unnecessary properties from orderItem
-        orderItem: undefined
-      };
-  
-      flattenedData.push(flattenedOrder);
-  
-      // Flatten historyDisp if needed
-      if (flattenedOrder.orderItem.historyDisp) {
-        flattenedOrder.orderItem.historyDisp.forEach(historyItem => {
-          const flattenedHistoryItem = {
-            ...historyItem,
-            // Remove unnecessary properties from historyItem
-            orderItem: undefined
-          };
-  
-          flattenedOrder = {
-            ...flattenedOrder,
-            ...flattenedHistoryItem
-          };
-        });
-      }
-    });
-  
-    return flattenedData;
-  }
-
-const flat = flattenData(data);
-console.log(flat);
-
-*/
-
-
-
-
-
-
-
-
-
-
 
 
 
