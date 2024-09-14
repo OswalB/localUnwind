@@ -922,3 +922,39 @@ function exploreObject(obj, depth = 0, parentKey = '', accumulator = []) {
     }
     return accumulator; 
 }
+
+//14/sep 7:36am
+
+function consolidar(arr, padre, indexPadre, accObject = {}, resultados = []) {
+    let tieneHijos = false; // Para verificar si hay descendientes
+
+    arr.forEach(item => {
+        if (item.parent.padre === padre) {
+            tieneHijos = true; 
+            accObject = { ...accObject, ...item.datos };
+            consolidar(arr, item.parent.yo, indexPadre, accObject, resultados); // Continuar explorando la rama
+        }
+    });
+
+    // Si no tiene descendientes, es el final de la rama
+    if (!tieneHijos) {
+        accObject = { ...arr[indexPadre].datos, ...accObject };
+        resultados.push(accObject); // Añadir el objeto al array de resultados
+    }
+
+    return resultados; // Devolver los resultados
+}
+
+
+arr1=[
+    {a:10, b:11, c:13},
+    {d:20, e:21},
+    {e:30}
+]
+
+arr2=[
+    {e:30},
+    {a:10, c:13, b:11},
+    {d:20, e:21},
+    
+]

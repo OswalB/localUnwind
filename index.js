@@ -72,7 +72,7 @@ const objPlano =
             "orderItem.qty": 5,
             "orderItem.dispatch": 5,
             "orderItem._id": "66d3e4bf9ea587a652888c82",
-            "orderItem.historyDisp.fechaHistory": "2024-09-01T03:01T03:45.414Z",
+            "orderItem.historyDisp.fechaHistory": "2024-09-01T03:45:55.415Z",
             "orderItem.historyDisp.dspHistory": "wios",
             "orderItem.historyDisp.qtyHistory": 1,
             "orderItem.historyDisp.loteVenta": "17439",
@@ -193,7 +193,7 @@ const objPlano =
             "orderItem.historyDisp.fechaHistory": "2024-09-10T01:36:48.448Z",
             "orderItem.historyDisp.dspHistory": "wios",
             "orderItem.historyDisp.qtyHistory": 9,
-            "orderItem.historyDisp.oteVenta": "17403",
+            "orderItem.historyDisp.loteVenta": "17403",
             "orderItem.historyDisp._id": "66dfa2b05a85f2116fa436a6",
             "createdAt": "Mon Sep 09 2024 20:36:21 GMT-0500 (hora estándar de Colombia)",
             "updatedAt": "2024-09-10T01:38:08.381Z"
@@ -367,7 +367,7 @@ const data = [
                         "_id": "66d3e4d19ea587a652888c95"
                     },
                     {
-                        "fechaHistory": "2024-09-01T03:51:55.415Z",
+                        "fechaHistory": "2024-09-01T03:45:55.415Z",
                         "dspHistory": "wios",
                         "qtyHistory": 1,
                         "loteVenta": "17439",
@@ -522,31 +522,70 @@ const data = [
     }
 ]
 
+const arr1 = [
+    { a: 10, b: 11, c: 13 },
+    { d: 20, e: 21 },
+    { e: 30 }
+];
+
+const arr2 = [
+    { e: 30 },
+    { a: 10, c: 13, b: 11 },
+    { d: 20, e: 21 }
+];
+
 
 // +***********  FUNCIONES DE PRUEBA
-let varglobal =[];
+
 unwind(data);
 
 
 function unwind(data) {
-    const dataUnwund = [];
-    const jsonData = exploreObject(data[3]);
-    console.log(jsonData);
-    let indexPadre ;
-    jsonData.forEach((item,index) =>{
-        if(item.parent.yo === 401){
-            indexPadre= index;
-        } 
+    let dataUnwind = [];
+    data.forEach(documento =>{
+        const jsonData = exploreObject(documento);
+        //console.log(jsonData);
+        const indexPadre = jsonData.reduce((minIdx, item, index) => {
+            return (minIdx === -1 || item.parent.yo < jsonData[minIdx].parent.yo)
+                ? index
+                : minIdx;
+        }, -1);
+        const padre = jsonData[indexPadre].parent.yo;
+        //console.log(indexPadre, padre);
+        res = consolidar(jsonData, padre, indexPadre);
+        console.log(res)
+        dataUnwind = [...dataUnwind, ...res];
     })
-    res = consolidar(jsonData, 401, indexPadre);
-    console.log(res)
+
+    console.log(dataUnwind);
+
+    console.log(compareArrays(dataUnwind, objPlano));
 
 }
 
-
-function consolidar(arr, padre, indexPadre, accObject={}) {
+function consolidar(arr, padre, indexPadre, accObject = {}, resultados = []) {
     let tieneHijos = false; // Para verificar si hay descendientes
 
+    arr.forEach(item => {
+        if (item.parent.padre === padre) {
+            tieneHijos = true; 
+            accObject = { ...accObject, ...item.datos };
+            consolidar(arr, item.parent.yo, indexPadre, accObject, resultados); // Continuar explorando la rama
+        }
+    });
+
+    // Si no tiene descendientes, es el final de la rama
+    if (!tieneHijos) {
+        accObject = { ...arr[indexPadre].datos, ...accObject };
+        resultados.push(accObject); // Añadir el objeto al array de resultados
+    }
+
+    return resultados; // Devolver los resultados
+}
+
+/* 14/sep 7:38 le falta devolver arrayde resultados
+function consolidar(arr, padre, indexPadre, accObject={}) {
+    let tieneHijos = false; 
     arr.forEach(item => {
         if (item.parent.padre === padre) {
             tieneHijos = true; 
@@ -615,6 +654,77 @@ function exploreObject(obj, idPadre,  parentKey = '', accumulator = []) {
     
     return accumulator;
 }
+
+
+function compareArrays(arr1, arr2) {
+    if (arr1.length !== arr2.length) {
+        return { result: false, reason: `Different lengths: arr1 has ${arr1.length} elements, arr2 has ${arr2.length} elements.` };
+    }
+
+    const normalize = obj => {
+        return Object.keys(obj).sort().reduce((acc, key) => {
+            acc[key] = obj[key];
+            return acc;
+        }, {});
+    };
+
+    const sortedArr1 = arr1.map(normalize).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+    const sortedArr2 = arr2.map(normalize).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+
+    let differences = [];
+
+    sortedArr1.forEach((item, index) => {
+        const obj1 = sortedArr1[index];
+        const obj2 = sortedArr2[index];
+
+        const diff = compareObjects(obj1, obj2);
+
+        if (Object.keys(diff).length > 0) {
+            differences.push({
+                index: index,
+                arr1: obj1,
+                arr2: obj2,
+                differences: diff
+            });
+        }
+    });
+
+    if (differences.length > 0) {
+        return { result: false, differences };
+    }
+
+    return { result: true, message: "Both arrays are equal." };
+}
+
+function compareObjects(obj1, obj2) {
+    let diff = {};
+
+    for (let key in obj1) {
+        if (obj1.hasOwnProperty(key)) {
+            if (obj2[key] === undefined) {
+                diff[key] = `Key "${key}" is missing in arr2`;
+            } else if (obj1[key] !== obj2[key]) {
+                diff[key] = `In arr1: ${obj1[key]}, In arr2: ${obj2[key]}`;
+            }
+        }
+    }
+
+    for (let key in obj2) {
+        if (obj2.hasOwnProperty(key) && obj1[key] === undefined) {
+            diff[key] = `Key "${key}" is missing in arr1`;
+        }
+    }
+
+    return diff;
+}
+
+
+
+//console.log(compareArrays(arr1, arr2));
+
+
+
+
 
 
 /*11/sep 8:52
