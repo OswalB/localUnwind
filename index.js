@@ -524,60 +524,98 @@ const data = [
 
 
 // +***********  FUNCIONES DE PRUEBA
+let varglobal =[];
 unwind(data);
 
 
 function unwind(data) {
-    const { accumulator, flat } = exploreObject(data[1]);
-    console.log(accumulator)
+    const dataUnwund = [];
+    const jsonData = exploreObject(data[3]);
+    console.log(jsonData);
+    let indexPadre ;
+    jsonData.forEach((item,index) =>{
+        if(item.parent.yo === 401){
+            indexPadre= index;
+        } 
+    })
+    res = consolidar(jsonData, 401, indexPadre);
+    console.log(res)
+
 }
 
-function exploreObject(obj, depth = 0, parentKey = '', accumulator = [], flat = {}) {
-    const indent = ' '.repeat(depth * 2);
-    if (Array.isArray(obj)) {
-        // Antes de entrar al array, guardamos los datos acumulados
-        if (Object.keys(flat).length > 0) {
-            console.log('push 1')
-            accumulator.push({ ...flat }); // Hacer push de una copia del objeto actual
-            flat = {}; // Limpiar el objeto flat para el siguiente grupo
+
+function consolidar(arr, padre, indexPadre, accObject={}) {
+    let tieneHijos = false; // Para verificar si hay descendientes
+
+    arr.forEach(item => {
+        if (item.parent.padre === padre) {
+            tieneHijos = true; 
+            accObject ={...accObject, ...item.datos}
+            consolidar(arr, item.parent.yo, indexPadre, accObject); // Continuar explorando la rama
         }
-        obj.forEach((item, index) => {
-            console.log(`${indent}  [${index}]   ${depth}`);
-            exploreObject(item, depth + 1, parentKey, accumulator, flat);
+    });
+
+    // Si no tiene descendientes, es el final de la rama
+    if (!tieneHijos) {
+        accObject = {...arr[indexPadre].datos, ...accObject}
+        console.log(accObject);
+    }
+}
+
+/*
+function countDescendantsForSpecificParent(arr, specificParent) {
+    function countDescendants(padre) {
+        let count = 0;
+        arr.forEach(item => {
+            if (item.parent.padre === padre) {
+                count++; // Contar al hijo directo
+                count += countDescendants(item.parent.yo); // Contar los descendientes del hijo
+            }
         });
-    } else
-        if (typeof obj === 'object' && obj !== null) {
-            for (let key in obj) {
-                if (obj.hasOwnProperty(key)) {
-                    const fullKey = parentKey ? `${parentKey}.${key}` : key; // Mantener la clave completa
-                    if (Array.isArray(obj[key])) {
-                        //parentKey += `${key}.`;// Guardar los datos primarios antes de explorar el array
-                        if (Object.keys(flat).length > 0) {
-                            console.log('push 2')
-                            accumulator.push({ ...flat });
-                            flat = {}; // Limpiar el objeto flat
-                        }
-                        exploreObject(obj[key], depth + 1, fullKey, accumulator, flat);
-                    } else {
-                        //const fullKey = `${parentKey}${key}`;
-                        console.log(`${indent}  ${fullKey}: ${obj[key]}`);
-                        flat[fullKey] = obj[key];
-                        flat.depth=depth
-                    }
+        return count;
+    }
+    const totalDescendants = countDescendants(specificParent);
+    console.log(`Padre ${specificParent} tiene ${totalDescendants} descendientes.`);
+}
+*/
+
+
+
+
+
+
+
+//12 sept 7:10 pm esta por fin hace bien el trabajo, noparece necesitar refactory
+function exploreObject(obj, idPadre,  parentKey = '', accumulator = []) {
+    if (typeof exploreObject.counter === 'undefined') {
+        exploreObject.counter = 400;
+    }
+    exploreObject.counter++;
+    let flat = {};
+    const idYo = exploreObject.counter;
+    if (Array.isArray(obj)) {
+        obj.forEach((item, index) => {
+            exploreObject(item, idYo,  parentKey, accumulator);
+        });
+    } else if (typeof obj === 'object' && obj !== null) {
+        for (let key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                const fullKey = parentKey ? `${parentKey}.${key}` : key; 
+                if (Array.isArray(obj[key]) || typeof obj[key] === 'object') {
+                    exploreObject(obj[key], idYo, fullKey, accumulator);
+                } else {
+                    flat[fullKey] = obj[key];
                 }
             }
         }
-        console.log('el fin')
-        console.log('depth: ',depth ,' obj: ', flat)
-    // Si llegamos al nivel más profundo, y no hay más objetos, hacemos push de los datos
-        
-    if (Object.keys(flat).length > 0) {
-        console.log('push 3')
-        accumulator.push({ ...flat }); // Guardar el último conjunto de datos en el acumulador
-        flat={}
     }
-    return { accumulator, flat }; // Devuelve el acumulador
+    if (Object.keys(flat).length > 0) {
+        accumulator.push({datos:flat,parent:{cont: exploreObject.counter,yo:idYo, padre:idPadre-1}});
+    }
+    
+    return accumulator;
 }
+
 
 /*11/sep 8:52
 function exploreObject(obj, depth = 0, parentKey = '', accumulator = [], flat = {}) {
