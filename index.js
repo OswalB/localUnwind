@@ -556,6 +556,32 @@ function unwind(data) {
     console.log(keysAndTypes);
 
 }
+
+function groupByField(arr, field) {
+    return arr.reduce((acc, item) => {
+        const fieldValue = item[field]; // Obtiene el valor del campo por el que quieres agrupar
+
+        // Si el campo no existe en el objeto, lo ignora
+        if (fieldValue === undefined) {
+            return acc;
+        }
+
+        // Si el valor del campo no tiene un grupo en el acumulador, crea un nuevo grupo
+        if (!acc[fieldValue]) {
+            acc[fieldValue] = [];
+        }
+
+        // Agrega el item al grupo correspondiente
+        acc[fieldValue].push(item);
+        return acc;
+    }, {});
+}
+
+
+
+
+
+
 //esta funcion esta OOKK
 function filterBy(arr, condition) {
     
